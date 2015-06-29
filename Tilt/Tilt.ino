@@ -1,3 +1,15 @@
+//#include <ADXL345.h>
+#include <BMA180.h>
+#include <BMP085.h>
+#include <helper_3dmath.h>
+#include <HMC5883L.h>
+#include <I2Cdev.h>
+#include <ITG3205.h>
+#include <L3G4200D.h>
+#include <MPU6050.h>
+#include <MS561101BA.h>
+#include <SFE_BMP180.h>
+
 // I2C device class (I2Cdev) demonstration Arduino sketch for MPU6050 class
 // 10/7/2011 by Jeff Rowberg <jeff@rowberg.net>
 // Updates should (hopefully) always be available at https://github.com/jrowberg/i2cdevlib
@@ -38,12 +50,16 @@ THE SOFTWARE.
 #include "I2Cdev.h"
 #include "MPU6050.h"
 #include "math.h"
+#include <Servo.h>
+
 
 // class default I2C address is 0x68
 // specific I2C addresses may be passed as a parameter here
 // AD0 low = 0x68 (default for InvenSense evaluation board)
 // AD0 high = 0x69
 MPU6050 accelgyro;
+Servo myservo;
+
 
 int16_t ax, ay, az;
 int16_t gx, gy, gz;
@@ -87,17 +103,24 @@ void loop() {
     projection=pow(projection,0.5);
     tilt=rad2deg*acos(projection/resultant);
     tilt = 90.0 - tilt;
-    if(abs(tilt) > 40.)vote++;
-    if(resultant < 2000.)vote++;
-   
-    if (vote > 40){
-    Serial.print(resultant); Serial.print("\t");
-    Serial.print(projection); Serial.print("\t");
-    Serial.println(tilt);
+    if(abs(tilt) > 50.)vote++;
+    if(resultant < 2000.)vote+= 20;
+   Serial.print(resultant); Serial.print("\t");
+   Serial.println(az);
+    if (vote > 100){
+    
+    //Serial.print(projection); Serial.print("\t");
+   // Serial.println(tilt);
       // blink LED to indicate activity
     blinkState = !blinkState;
-    digitalWrite(LED_PIN, blinkState);}
+    digitalWrite(LED_PIN, blinkState);
+    parachute();
+    }
     if ((abs(tilt) <20.) &&
     (resultant > 15000)){vote--;blinkState=false;digitalWrite(LED_PIN,blinkState);};
     if(vote < 0)vote=0;
+}
+void parachute()
+{
+    myservo.writeMicroseconds(1100);
 }

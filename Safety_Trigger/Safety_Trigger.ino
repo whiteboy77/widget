@@ -48,7 +48,7 @@ MPU6050 accelgyro;
 Servo myservo;
 
 int16_t ax, ay, az;
-int16_t gx, gy, gz; Not needed here
+int16_t gx, gy, gz; //Not needed here
 float resultant; // Magnitude of the 
 
 #define LED_PIN 13
