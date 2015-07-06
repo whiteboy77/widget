@@ -50,8 +50,9 @@ Servo myservo;
 int16_t ax, ay, az;
 int16_t gx, gy, gz; //Not needed here
 float resultant; // Magnitude of the 
-
-#define LED_PIN 13
+float mavg=6000; //      moving average over
+float nsamp=10;
+#define LED_PIN 13 
 bool blinkState = false;
 
 void setup() {
@@ -85,11 +86,13 @@ void loop() {
     //accelgyro.getRotation(&gx, &gy, &gz);
     resultant = ((float)ax*ax + (float)ay*ay + (float)az*az);
     resultant = pow(resultant,0.5);
-    if(resultant < 4000.){
+    mavg = mavg + (resultant - mavg)/nsamp;
+    //Serial.println(mavg);
+    if(mavg < 4000.){
       blinkState=true;
-      Serial.print("HELP I AM FALLING HELP HELP: ");
+     // Serial.print("HELP I AM FALLING HELP HELP: ");
       parachute();
-      Serial.println((int16_t)(resultant/10.));            // For debug
+     // Serial.println((int16_t)(resultant/10.));            // For debug
       digitalWrite(LED_PIN, blinkState);
      delay(1000);
     }
