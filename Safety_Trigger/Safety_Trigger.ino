@@ -50,11 +50,12 @@ Servo myservo;
 int16_t ax, ay, az;
 int16_t gx, gy, gz; //Not needed here
 float resultant; // Magnitude of the 
-float mavg=6000; //      moving average over
+float mavg=12000; //      moving average over
 float nsamp=10;
 #define LED_PIN 13 
 bool blinkState = false;
-
+int pos = 0, ch1;    // variable to store the servo position 
+//int incoming = 0;
 void setup() {
     // join I2C bus (I2Cdev library doesn't do this automatically)
     Wire.begin();
@@ -62,6 +63,7 @@ void setup() {
     // initialize serial communication
     // (38400 chosen because it works as well at 8MHz as it does at 16MHz, but
     // it's really up to you depending on your project)
+    pinMode(4, INPUT);
     Serial.begin(9600);
     myservo.attach(9);
     
@@ -78,23 +80,26 @@ void setup() {
 }
 
 void loop() {
-    // read raw accel/gyro measurements from device
+    //Manual Deloyment - Read input from radio receiver and trigger parachute.
+      ch1 = pulseIn(4, HIGH, 25000);
+    if (ch1 < 1500){ 
+    //  Serial.println("trigger");
+    parachute();
+    delay(50);
+    }
+    //Automatic deployment - read raw accel/gyro measurements from device
     accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-
-    // these methods (and a few others) are also available
-    //accelgyro.getAcceleration(&ax, &ay, &az);
-    //accelgyro.getRotation(&gx, &gy, &gz);
     resultant = ((float)ax*ax + (float)ay*ay + (float)az*az);
     resultant = pow(resultant,0.5);
     mavg = mavg + (resultant - mavg)/nsamp;
     //Serial.println(mavg);
-    if(mavg < 4000.){
+    if(mavg < 8000.){
       blinkState=true;
-     // Serial.print("HELP I AM FALLING HELP HELP: ");
+     // Serial.print("FALLING: ");
       parachute();
      // Serial.println((int16_t)(resultant/10.));            // For debug
-      digitalWrite(LED_PIN, blinkState);
-     delay(1000);
+     digitalWrite(LED_PIN, blinkState);
+     delay(500);
     }
     // Turn off the LED
     blinkState=false;
