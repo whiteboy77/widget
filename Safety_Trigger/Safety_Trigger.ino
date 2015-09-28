@@ -1,5 +1,5 @@
 //Safety trigger.
-//Triggers when G forces are less than a threshold amount
+//Triggers when G forces are less than a threshold amount defined by Gfactor
 
 
 //Based on I2C device class (I2Cdev) demonstration Arduino sketch for MPU6050 class
@@ -34,78 +34,98 @@ THE SOFTWARE.
 #include "Wire.h"
 #include "math.h"
 #include <Servo.h>
-
-// I2Cdev and MPU6050 must be installed as libraries, or else the .cpp/.h files
-// for both classes must be in the include path of your project
 #include "I2Cdev.h"
 #include "MPU6050.h"
-
-// class default I2C address is 0x68
-// specific I2C addresses may be passed as a parameter here
-// AD0 low = 0x68 (default for InvenSense evaluation board)
-// AD0 high = 0x69
+#define LED_PIN 13 
+/**********************************************************************
+**  Alter the Gfactor to suit size of drone. Your chance to shine.. :)*
+**********************************************************************/
+const float Gfactor = 0.7;    /****************************************
+***********************************************************************
+**********************************************************************/
 MPU6050 accelgyro;
 Servo myservo;
-
 int16_t ax, ay, az;
-int16_t gx, gy, gz; //Not needed here
-float resultant; // Magnitude of the 
-float mavg=12000; //      moving average over
-float nsamp=10;
-#define LED_PIN 13 
+float resultant;  // Magnitude of the resultant accelleration
+float mavg=16500; //      moving average over
+float nsamp=100;   //      this number of samples
+const float g=9.81;      //      m /sec^2
+float gmult;
+float vertAcceln;
+
 bool blinkState = false;
 int pos = 0, ch1;    // variable to store the servo position 
-//int incoming = 0;
+
 void setup() {
     // join I2C bus (I2Cdev library doesn't do this automatically)
     Wire.begin();
 
     // initialize serial communication
-    // (38400 chosen because it works as well at 8MHz as it does at 16MHz, but
-    // it's really up to you depending on your project)
-    pinMode(4, INPUT);
     Serial.begin(9600);
+    // Configure pin 4 for input from radio control Rx
+    pinMode(4, INPUT);
+  
     myservo.attach(9);
     
     // initialize device
     Serial.println("Initializing I2C devices...");
     accelgyro.initialize();
 
-    // verify connection
+    // verify connection - debug only. 
     Serial.println("Testing device connections...");
     Serial.println(accelgyro.testConnection() ? "MPU6050 connection successful" : "MPU6050 connection failed");
 
-    // configure Arduino LED for
+    // configure Arduino LED 
     pinMode(LED_PIN, OUTPUT);
+    // Get (hopefully stationary!) g-force
+    for(int i=0; i<nsamp; i++){
+         accelgyro.getAcceleration(&ax, &ay, &az);
+         resultant = ((float)ax*ax + (float)ay*ay + (float)az*az);
+         resultant = pow(resultant,0.5);
+         mavg = mavg + ((resultant - mavg)/nsamp);
+    }
+    gmult = g/mavg;
+    Serial.print("gmult = ");Serial.println(gmult,5);
 }
 
 void loop() {
     //Manual Deloyment - Read input from radio receiver and trigger parachute.
-      ch1 = pulseIn(4, HIGH, 25000);
-    if (ch1 < 1500){ 
-    //  Serial.println("trigger");
-    parachute();
-    delay(50);
+    //Comment out if no connection, as noise will cause false triggering.
+   /* ch1 = pulseIn(4, HIGH, 25000);
+    if (ch1!= 0){
+      Serial.print("ch1 = ");Serial.println(ch1);
+      if (ch1 < 1500){ 
+        parachute();
+      }
     }
+    */
     //Automatic deployment - read raw accel/gyro measurements from device
-    accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+    accelgyro.getAcceleration(&ax, &ay, &az);
     resultant = ((float)ax*ax + (float)ay*ay + (float)az*az);
     resultant = pow(resultant,0.5);
-    mavg = mavg + (resultant - mavg)/nsamp;
-    //Serial.println(mavg);
-    if(mavg < 8000.){
-      blinkState=true;
-     // Serial.print("FALLING: ");
+    mavg = mavg + ((resultant - mavg)/nsamp);
+    vertAcceln = mavg * gmult;
+    if(vertAcceln < Gfactor*g){
+      Serial.println(vertAcceln);
+      blinkState=true;     
       parachute();
-     // Serial.println((int16_t)(resultant/10.));            // For debug
-     digitalWrite(LED_PIN, blinkState);
-     delay(500);
-    }
-    // Turn off the LED
-    blinkState=false;
-    digitalWrite(LED_PIN, blinkState);
+   } 
+   //delay(1000);   // Temp loop delay
 }
+    
+    
+
 void parachute()
 {
+    
+    digitalWrite(LED_PIN, blinkState);
     myservo.writeMicroseconds(1100);
+    Serial.println ("triggered");
+    delay(12500);
+    // Reset if possible
+    myservo.writeMicroseconds(1500);
+    blinkState=false;
+    digitalWrite(LED_PIN, blinkState);
+    Serial.println ("reset");
+    
 }
