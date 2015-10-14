@@ -104,6 +104,7 @@ void loop() {
     //Comment out if no connection, as noise will cause false triggering.
     ch1 = pulseIn(4, HIGH, 25000);
     if (ch1!= 0){
+      Serial.print("ch1 = ");Serial.println(ch1);
       if (ch1 < 1500){ 
         parachute();
       }
@@ -141,7 +142,7 @@ void parachute()
     digitalWrite(LED_PIN, blinkState);
     myservo.writeMicroseconds(1100);
     Serial.println ("triggered");
-    delay(100000);
+    delay(10000);
     // Reset if possible
     myservo.writeMicroseconds(1500);
     blinkState=false;
