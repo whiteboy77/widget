@@ -8,17 +8,14 @@
 /* ============================================
 I2Cdev device library code is placed under the MIT license
 Copyright (c) 2011 Jeff Rowberg
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
-
 The above copyright notice and this permission notice shall be included in
 all copies or substantial portions of the Software.
-
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -40,15 +37,18 @@ THE SOFTWARE.
 /**********************************************************************
 **  Alter the Gfactor to suit size of drone. Your chance to shine.. :)*
 **********************************************************************/
-const float Gfactor = 0.7;    /****************************************
+const float Gfactor = 0.2;    /****************************************
 ***********************************************************************
 **********************************************************************/
 MPU6050 accelgyro;
 Servo myservo;
 int16_t ax, ay, az;
+float restot = 0;
+
 float resultant;  // Magnitude of the resultant accelleration
-float mavg=16500; //      moving average over
-float nsamp=100;   //      this number of samples
+
+
+float nsamp=10.;   //      this number of samples
 const float g=9.81;      //      m /sec^2
 float gmult;
 float vertAcceln;
@@ -61,7 +61,7 @@ void setup() {
     Wire.begin();
 
     // initialize serial communication
-    Serial.begin(9600);
+    Serial.begin(38400);
     // Configure pin 4 for input from radio control Rx
     pinMode(4, INPUT);
   
@@ -70,6 +70,10 @@ void setup() {
     // initialize device
     Serial.println("Initializing I2C devices...");
     accelgyro.initialize();
+    digitalWrite(LED_PIN, true);
+    delay(1000);
+    digitalWrite(LED_PIN, false);
+
 
     // verify connection - debug only. 
     Serial.println("Testing device connections...");
@@ -82,10 +86,17 @@ void setup() {
          accelgyro.getAcceleration(&ax, &ay, &az);
          resultant = ((float)ax*ax + (float)ay*ay + (float)az*az);
          resultant = pow(resultant,0.5);
-         mavg = mavg + ((resultant - mavg)/nsamp);
+         restot=restot+resultant;
+
     }
-    gmult = g/mavg;
+          resultant = restot/nsamp;
+
+    gmult = g/resultant;
     Serial.print("gmult = ");Serial.println(gmult,5);
+    delay(1000);
+     digitalWrite(LED_PIN, true);
+    delay(1000);
+    digitalWrite(LED_PIN, false);
 }
 
 void loop() {
@@ -100,17 +111,27 @@ void loop() {
     }
     */
     //Automatic deployment - read raw accel/gyro measurements from device
+    restot =0;
+
     accelgyro.getAcceleration(&ax, &ay, &az);
-    resultant = ((float)ax*ax + (float)ay*ay + (float)az*az);
-    resultant = pow(resultant,0.5);
-    mavg = mavg + ((resultant - mavg)/nsamp);
-    vertAcceln = mavg * gmult;
+   
+        for(int i=0; i<nsamp; i++){
+         accelgyro.getAcceleration(&ax, &ay, &az);
+         resultant = ((float)ax*ax + (float)ay*ay + (float)az*az);
+         resultant = pow(resultant,0.5);
+         restot=restot+resultant;
+
+    }
+    resultant = restot/nsamp;
+    vertAcceln = resultant * gmult;
+    Serial.println(vertAcceln);
+
     if(vertAcceln < Gfactor*g){
-      Serial.println(vertAcceln);
+      Serial.println(vertAcceln,5);
       blinkState=true;     
       parachute();
    } 
-   //delay(1000);   // Temp loop delay
+ //  delay(100);   // Temp loop delay
 }
     
     
@@ -121,7 +142,7 @@ void parachute()
     digitalWrite(LED_PIN, blinkState);
     myservo.writeMicroseconds(1100);
     Serial.println ("triggered");
-    delay(12500);
+    delay(10000);
     // Reset if possible
     myservo.writeMicroseconds(1500);
     blinkState=false;
